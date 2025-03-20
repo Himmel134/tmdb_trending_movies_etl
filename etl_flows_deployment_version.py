@@ -89,7 +89,7 @@ def transform_data(response:list[dict], func_transform=None):
 
 # --- Task for load to BigQuery
 @task(name="load-to-gbq", tags={"load"}, log_prints=True)
-def load_to_gbq(table:pd.DataFrame, table_name:str, if_exist:str="replace"):
+def load_to_gbq(table:pd.DataFrame, table_name:str, if_exist:str="append"):
     """Load to Google BigQuery
 
     Args:
@@ -155,7 +155,7 @@ def transform_movie_details(response:list[dict]):
 
 # /*********** ETL Flows **************/
 @flow(name="etl-flows", flow_run_name="etl-subflow-{name}",log_prints=True)
-def etl_flow(name:str, endpoint:str, bulk:bool=False, bulk_response:list=[], func_transform:object=None, method:str='replace'):
+def etl_flow(name:str, endpoint:str, bulk:bool=False, bulk_response:list=[], func_transform:object=None, method:str='append'):
     """Subflow process for running basic ETL 
 
     Args:
@@ -164,7 +164,7 @@ def etl_flow(name:str, endpoint:str, bulk:bool=False, bulk_response:list=[], fun
         bulk (bool, optional): `True` if do the bulk request. Defaults to False.
         bulk_response (list, optional): Bulk response. Defaults to [].
         func_transform (object, optional): custome function. Defaults to None.
-        method (str, optional):  Behavior when the destination table exists. Defaults to 'replace'.
+        method (str, optional):  Behavior when the destination table exists. Defaults to 'append'.
     """
     if bulk:
         data = get_bulk_data(bulk_response, endpoint)
@@ -182,13 +182,13 @@ def tmdb_etl_mainflow(timestamp=datetime.datetime.now(tz=tz)):
         timestamp (_type_, optional): _description_. Defaults to datetime.datetime.now().
     """
     # Flow 1. Update Trending Movies
-    etl_flow(name="trending", endpoint="/trending/movie/day", func_transform=transform_trending_movies, method="replace")
+    etl_flow(name="trending", endpoint="/trending/movie/day", func_transform=transform_trending_movies, method="append")
     
     # Flow 2. Update Movie Genre
     # Read movieId from Trending Movies
     trending = read_gbq("trending")
     list_id = trending['id'].unique().tolist()
-    etl_flow(name="movies", endpoint='/movie/', func_transform=transform_movie_details, bulk=True, bulk_response=list_id, method="replace")
+    etl_flow(name="movies", endpoint='/movie/', func_transform=transform_movie_details, bulk=True, bulk_response=list_id, method="append")
 
 
 if __name__=="__main__":
